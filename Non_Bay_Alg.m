@@ -5,7 +5,7 @@ close all;
 %% creating the reference symbols QAM symbols
 M = 8; % Modulation order
 N = 15; %Number of metasurfaces
-NE = 3; %Number of eavsdroppers
+NE = 4; %Number of eavsdroppers
 Symbol_M = zeros(M,N); % To repeat the symbols
 
 S = zeros(M,N,NE); % The combination of Metasurface responses and symbols 
@@ -22,11 +22,10 @@ symbol(3) = 1*exp(1j*pi);
 symbol(4) = 1*exp(1j*wrapTo2Pi(3*pi/2));
 
 symbol = [symbol*exp(1j*pi/4),symbol];
-s= polarscatter((angle(symbol)),abs(symbol),'filled','b')
-rticks([0 1])
-
-s.SizeData = 100
-set(gca,'FontSize',18);
+% s= polarscatter((angle(symbol)),abs(symbol),'filled','b')
+% rticks([0 1])
+% s.SizeData = 100
+% set(gca,'FontSize',18);
 
 
 rad2deg(wrapTo2Pi(angle(symbol)))
@@ -37,7 +36,7 @@ rad2deg(wrapTo2Pi(angle(symbol)))
 MS(1,:) = [pi/4,3*pi/4,5*pi/4,7*pi/4,0,pi/2,pi,3*pi/2,3*pi/2,3*pi/2,pi/4,3*pi/2,3*pi/2,3*pi/2,pi/4];
 MS(2,:) = [pi,pi/2,pi/4,3*pi/4,7*pi/4,0,3*pi/2,5*pi/4,0,pi/2,pi/2,5*pi/4,0,pi/2,pi/2];
 MS(3,:) = [pi/2,pi/2,pi/4,3*pi/4,7*pi/4,0,0,5*pi/4,0,3*pi/2,pi/2,5*pi/4,0,7*pi/4,pi/4];
-
+MS(4,:) = [pi/4,pi/2,pi/4,7*pi/4,0,0,0,5*pi/4,0,3*pi/2,3*pi/2,7*pi/4,0,7*pi/4,pi/4];
 % The combination of Metasurface responses and symbols 
 for e=1:NE
 S(:,:,e) = symbol'.* 1*exp(1j*MS(e,:));
@@ -77,9 +76,12 @@ A = 1/NE * ones(NE,NE);
 
 Beta = 1; %Every agent observes new informtion at every iteration
 
+%Update parameter
+delta=0.9;
+
 
 %%
-MaxIt = 40;
+MaxIt = 300;
 mu = zeros(NE,MaxIt,M); % Matrix of beliefs for all eavesdroppers as function of time
 mu(:,1,:) = 1/M;
 so = zeros(1,MaxIt); %observation of eavesdroppers for each time
@@ -87,17 +89,21 @@ z=zeros(NE,MaxIt);
 % tempso= zeros(1,MaxIt);
 %The belifes calculations for one symbol theta
 
-theta_star = 6;
+theta_star = 2;
 
 so = zeros(NE,MaxIt);
     for it=2:MaxIt
 
-        if it == 10
+        if it == 50
             theta_star = 3;
         end
 
-         if it == 20
+         if it == 140
             theta_star = 6;
+         end
+
+           if it == 200
+            theta_star = 4;
         end
 
         tempso= randperm(numel(S(1,:,1)));%or just select an indicies
@@ -108,13 +114,13 @@ so = zeros(NE,MaxIt);
         so(e,it) = find(round(rad2deg(wrapTo2Pi(angle(symbol)))) == round(rad2deg(wrapTo2Pi(angle(S(theta_star,tempso(1),e))))));
         
         for p=1:M
-            temp(p) = prod((mu(:,it-1,p).^(1/NE)*l(so(e,it),p,e)));
+            temp(p) = prod((mu(:,it-1,p).^(1*(1-delta)/NE)*l(so(e,it),p,e).^(1-delta)));
         end
         
         z(e,it) = sum(temp);
         
        for theta=1:M 
-        mu(e,it,theta) = (1/z(e,it)) * prod( (mu(:,it-1,theta).^(1/NE))* l(so(e,it),theta,e));
+        mu(e,it,theta) = (1/z(e,it)) * prod( (mu(:,it-1,theta).^(1*(1-delta)/NE))* l(so(e,it),theta,e).^(1-delta));
         
         
        end        
@@ -123,16 +129,29 @@ so = zeros(NE,MaxIt);
 
     %% Results and plots
     %Plotting the beliefs as function of time
-for pe=1:M
-plot(1:30,mu(1,1:30,3),'Linewidth',2.4)
+figure
+plot(1:MaxIt,mu(:,1:MaxIt,2),'Linewidth',2.4)
 hold on
-end
+xline(100)
 ylabel('\mu(X)')
 xlabel('iteration number')
 set(gca,'FontSize',21);
 grid on
-legend ("X_1","X_2","X_3","X_4","X_5","X_6","X_7","X_8")
-legend("Eve1","Eve2","Eve3")
+legend("Eve1","Eve2","Eve3","Eve4")
+
+
+figure
+for pe=2:2:6
+plot(1:MaxIt,mu(1,1:end,pe),'Linewidth',2.4)
+hold on
+end
+xline(100)
+ylabel('\mu(X)')
+xlabel('iteration number')
+set(gca,'FontSize',21);
+grid on
+legend ("X_2","X_4","X_6")%,"X_3","X_4","X_5","X_6","X_7","X_8")
+
 
 
 
